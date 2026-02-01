@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -15,36 +15,62 @@ const phrases = [
 export default function ValentinePage() {
   const [isAgreed, setIsAgreed] = useState(false);
   const [yesButtonScale, setYesButtonScale] = useState(1);
-  const [noButtonTextIndex, setNoButtonTextIndex] = useState(0);
+  const [noCount, setNoCount] = useState(0);
+  const [noPosition, setNoPosition] = useState<{ top: string; left: string } | null>(null);
 
-  const [noPosition, setNoPosition] = useState({
-    top: '65%',
-    left: '70%',
-  });
+  const containerRef = useRef<HTMLElement>(null);
+  const yesButtonRef = useRef<HTMLButtonElement>(null);
 
   const celebrationImage = useMemo(() => {
     return PlaceHolderImages.find((img) => img.id === 'valentine-celebration');
   }, []);
+
+  useEffect(() => {
+    if (noCount > 0 && containerRef.current && yesButtonRef.current) {
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const yesRect = yesButtonRef.current.getBoundingClientRect();
+      
+      const noButtonWidth = 150; // Approximate width based on py-6 px-10 text-xl
+      const noButtonHeight = 76; // Approximate height
+
+      const safeZone = {
+        top: yesRect.top - containerRect.top - noButtonHeight - 20,
+        bottom: yesRect.bottom - containerRect.top + 20,
+        left: yesRect.left - containerRect.left - noButtonWidth - 20,
+        right: yesRect.right - containerRect.left + 20,
+      };
+
+      let newTop, newLeft;
+      let attempts = 0;
+      do {
+        newTop = Math.random() * (containerRect.height - noButtonHeight);
+        newLeft = Math.random() * (containerRect.width - noButtonWidth);
+        attempts++;
+      } while (
+        attempts < 100 &&
+        newTop > safeZone.top && newTop < safeZone.bottom &&
+        newLeft > safeZone.left && newLeft < safeZone.right
+      );
+      
+      setNoPosition({ top: `${newTop}px`, left: `${newLeft}px` });
+    }
+  }, [noCount]);
 
   const handleYesClick = () => {
     setIsAgreed(true);
   };
 
   const handleNoInteraction = () => {
-    setYesButtonScale((scale) => Math.min(scale + 0.4, 5));
-    setNoButtonTextIndex((prev) => (prev + 1) % phrases.length);
-
-    const newTop = Math.random() * 80 + 10;
-    const newLeft = Math.random() * 80 + 10;
-
-    setNoPosition({ top: `${newTop}%`, left: `${newLeft}%` });
+    setNoCount(count => count + 1);
+    setYesButtonScale((scale) => Math.min(scale + 0.2, 2.0));
   };
   
   const getYesButtonText = () => {
-    if (yesButtonScale > 1.5 && yesButtonScale <= 2.5) return "Yesss!";
-    if (yesButtonScale > 2.5) return "Click me, beautiful!";
+    if (yesButtonScale > 1.5) return "Yesss!";
     return "Yes";
   }
+
+  const noButtonText = phrases[noCount % phrases.length];
 
   if (isAgreed) {
     return (
@@ -71,34 +97,54 @@ export default function ValentinePage() {
   }
 
   return (
-    <main className="relative flex min-h-screen flex-col items-center justify-center bg-background p-4 overflow-hidden">
+    <main ref={containerRef} className="relative flex min-h-screen flex-col items-center justify-center bg-background p-4 overflow-hidden">
       <Heart className="absolute top-10 left-10 text-primary/10 size-16 rotate-[-15deg] animate-pulse" fill="currentColor" />
       <Heart className="absolute bottom-16 right-16 text-primary/10 size-24 rotate-[10deg] animate-pulse" fill="currentColor" />
       <Heart className="absolute top-20 right-24 text-primary/5 size-12 rotate-[25deg] animate-pulse delay-500" fill="currentColor" />
       <Heart className="absolute bottom-24 left-20 text-primary/5 size-10 rotate-[-25deg] animate-pulse delay-700" fill="currentColor" />
       
-      <h1 className="font-headline text-4xl sm:text-5xl md:text-7xl font-bold text-primary text-center mb-16">
-        Will you be my Valentine?
-      </h1>
-      <div className="flex items-center gap-6 z-10">
-        <Button 
-          onClick={handleYesClick}
-          className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold text-xl py-8 px-12 transition-all duration-300 ease-in-out shadow-lg hover:shadow-2xl"
-          style={{ transform: `scale(${yesButtonScale})` }}
-        >
-          {getYesButtonText()}
-        </Button>
+      <div className="z-10 flex flex-col items-center gap-8">
+        <h1 className="font-headline text-4xl sm:text-5xl md:text-7xl font-bold text-primary text-center">
+          Will you be my Valentine?
+        </h1>
+        <div className="flex items-center gap-4">
+          <Button 
+            ref={yesButtonRef}
+            onClick={handleYesClick}
+            className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold text-xl py-6 px-10 transition-transform duration-300 ease-in-out shadow-lg hover:shadow-2xl"
+            style={{ transform: `scale(${yesButtonScale})` }}
+          >
+            {getYesButtonText()}
+          </Button>
+          {noCount === 0 && (
+            <Button
+              onMouseOver={handleNoInteraction}
+              onClick={handleNoInteraction}
+              className="font-bold text-xl py-6 px-10 shadow-md"
+              variant="primary"
+            >
+              {phrases[0]}
+            </Button>
+          )}
+        </div>
       </div>
 
-      <Button
-        onMouseOver={handleNoInteraction}
-        onClick={handleNoInteraction} // for mobile
-        style={{ position: 'absolute', top: noPosition.top, left: noPosition.left, transform: 'translate(-50%, -50%)' }}
-        className="font-bold text-lg py-3 px-6 transition-all duration-300 ease-in-out shadow-md"
-        variant="primary"
-      >
-        {phrases[noButtonTextIndex]}
-      </Button>
+      {noCount > 0 && (
+        <Button
+          onMouseOver={handleNoInteraction}
+          onClick={handleNoInteraction}
+          style={{
+            position: 'absolute',
+            top: noPosition?.top,
+            left: noPosition?.left,
+            visibility: noPosition ? 'visible' : 'hidden',
+          }}
+          className="z-10 font-bold text-xl py-6 px-10 transition-all duration-300 ease-in-out shadow-md"
+          variant="primary"
+        >
+          {noButtonText}
+        </Button>
+      )}
     </main>
   );
 }
