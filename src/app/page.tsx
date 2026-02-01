@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -17,8 +18,8 @@ export default function ValentinePage() {
   const [noButtonTextIndex, setNoButtonTextIndex] = useState(0);
 
   const [noPosition, setNoPosition] = useState({
-    top: '60%',
-    left: '55%',
+    top: '65%',
+    left: '70%',
   });
 
   const celebrationImage = useMemo(() => {
