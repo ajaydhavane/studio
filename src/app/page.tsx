@@ -15,7 +15,8 @@ export default function ValentinePage() {
   const [isAgreed, setIsAgreed] = useState(false);
   const [yesButtonScale, setYesButtonScale] = useState(1);
   const [noCount, setNoCount] = useState(0);
-  const [noPosition, setNoPosition] = useState<{ top: string; left: string } | null>(null);
+  const [noButtonPosition, setNoButtonPosition] = useState<{ top: number; left: number } | null>(null);
+  const [isNoButtonAbsolute, setIsNoButtonAbsolute] = useState(false);
 
   const containerRef = useRef<HTMLElement>(null);
   const yesButtonRef = useRef<HTMLButtonElement>(null);
@@ -26,6 +27,7 @@ export default function ValentinePage() {
   }, []);
 
   useEffect(() => {
+    // This effect calculates a new random position for the "No" button.
     if (noCount > 0 && containerRef.current && yesButtonRef.current && noButtonRef.current) {
         const containerRect = containerRef.current.getBoundingClientRect();
         const yesButtonRect = yesButtonRef.current.getBoundingClientRect();
@@ -34,43 +36,58 @@ export default function ValentinePage() {
         let newTop, newLeft;
         let attempts = 0;
         const maxAttempts = 100;
-  
-        const safePadding = 20;
+        const safePadding = 20; // Extra space around the "Yes" button.
   
         do {
+          // Generate a random position within the container's bounds.
           newTop = Math.random() * (containerRect.height - noButtonRect.height);
           newLeft = Math.random() * (containerRect.width - noButtonRect.width);
   
-          const yesLeft = yesButtonRect.left - containerRect.left;
-          const yesTop = yesButtonRect.top - containerRect.top;
-          const yesRight = yesButtonRect.right - containerRect.left;
-          const yesBottom = yesButtonRect.bottom - containerRect.top;
-
-          const overlap =
-            newLeft < yesRight + safePadding &&
-            newLeft + noButtonRect.width > yesLeft - safePadding &&
-            newTop < yesBottom + safePadding &&
-            newTop + noButtonRect.height > yesTop - safePadding;
+          // Bounding box for the "Yes" button relative to the container, with padding
+          const yesBox = {
+            left: yesButtonRect.left - containerRect.left - safePadding,
+            top: yesButtonRect.top - containerRect.top - safePadding,
+            right: yesButtonRect.right - containerRect.left + safePadding,
+            bottom: yesButtonRect.bottom - containerRect.top + safePadding,
+          };
           
+          // Bounding box for the new "No" button position
+          const noBox = {
+            left: newLeft,
+            top: newTop,
+            right: newLeft + noButtonRect.width,
+            bottom: newTop + noButtonRect.height,
+          };
+  
+          // Check if the "No" button's new position would overlap with the "Yes" button.
+          const overlap = !(
+            noBox.right < yesBox.left ||
+            noBox.left > yesBox.right ||
+            noBox.bottom < yesBox.top ||
+            noBox.top > yesBox.bottom
+          );
+  
           if (!overlap) {
-            break;
+            break; // Found a safe position.
           }
           attempts++;
         } while (attempts < maxAttempts);
   
-        setNoPosition({ top: `${newTop}px`, left: `${newLeft}px` });
+        setNoButtonPosition({ top: newTop, left: newLeft });
       }
-  }, [noCount, yesButtonScale]);
+  }, [noCount]);
 
   const handleYesClick = () => {
     setIsAgreed(true);
   };
 
   const handleNoInteraction = () => {
+    if (!isNoButtonAbsolute) {
+        setIsNoButtonAbsolute(true);
+    }
     setNoCount(count => count + 1);
-    const newScale = yesButtonScale + 0.2;
-    const maxScale = 1.6;
-    setYesButtonScale(Math.min(newScale, maxScale));
+    // Increase scale of "Yes" button, but cap it to avoid hiding the question.
+    setYesButtonScale(scale => Math.min(scale + 0.2, 1.8)); 
   };
   
   const getYesButtonText = () => {
@@ -79,7 +96,7 @@ export default function ValentinePage() {
   }
 
   const noButtonText = phrases[Math.min(noCount, phrases.length - 1)];
-  const buttonSizeClass = `py-4 px-8 text-lg`;
+  const buttonSizeClass = `py-4 px-8 text-lg rounded-lg`;
 
   if (isAgreed) {
     return (
@@ -127,10 +144,10 @@ export default function ValentinePage() {
               ref={noButtonRef}
               onMouseOver={handleNoInteraction}
               onClick={handleNoInteraction}
-              className={`font-bold transition-all duration-300 ease-in-out shadow-md ${buttonSizeClass} ${noCount > 0 ? 'absolute' : ''}`}
-              style={noCount > 0 && noPosition ? {
-                top: noPosition.top,
-                left: noPosition.left,
+              className={`font-bold shadow-md ${buttonSizeClass} ${isNoButtonAbsolute ? 'absolute' : 'relative'}`}
+              style={isNoButtonAbsolute && noButtonPosition ? {
+                top: `${noButtonPosition.top}px`,
+                left: `${noButtonPosition.left}px`,
                 transition: 'top 0.4s ease, left 0.4s ease',
               } : {}}
               variant="primary"
