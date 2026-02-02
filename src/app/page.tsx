@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { Heart, Upload } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
@@ -17,46 +16,51 @@ export default function ValentinePage() {
   const [yesButtonScale, setYesButtonScale] = useState(1);
   const [noCount, setNoCount] = useState(0);
   const [noPosition, setNoPosition] = useState<{ top: string; left: string } | null>(null);
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLElement>(null);
   const yesButtonRef = useRef<HTMLButtonElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const noButtonRef = useRef<HTMLButtonElement>(null);
 
   const celebrationImage = useMemo(() => {
     return PlaceHolderImages.find((img) => img.id === 'valentine-celebration');
   }, []);
 
   useEffect(() => {
-    if (noCount > 0 && containerRef.current && yesButtonRef.current) {
-      const containerRect = containerRef.current.getBoundingClientRect();
-      const yesRect = yesButtonRef.current.getBoundingClientRect();
-      
-      const noButtonWidth = 150; // Approximate width
-      const noButtonHeight = 76; // Approximate height
+    if (noCount > 0 && containerRef.current && yesButtonRef.current && noButtonRef.current) {
+        const containerRect = containerRef.current.getBoundingClientRect();
+        const yesButtonRect = yesButtonRef.current.getBoundingClientRect();
+        const noButtonRect = noButtonRef.current.getBoundingClientRect();
+  
+        let newTop, newLeft;
+        let attempts = 0;
+        const maxAttempts = 100;
+  
+        const safePadding = 20;
+  
+        do {
+          newTop = Math.random() * (containerRect.height - noButtonRect.height);
+          newLeft = Math.random() * (containerRect.width - noButtonRect.width);
+  
+          const yesLeft = yesButtonRect.left - containerRect.left;
+          const yesTop = yesButtonRect.top - containerRect.top;
+          const yesRight = yesButtonRect.right - containerRect.left;
+          const yesBottom = yesButtonRect.bottom - containerRect.top;
 
-      const safeZone = {
-        top: yesRect.top - containerRect.top - noButtonHeight - 20,
-        bottom: yesRect.bottom - containerRect.top + 20,
-        left: yesRect.left - containerRect.left - noButtonWidth - 20,
-        right: yesRect.right - containerRect.left + 20,
-      };
-
-      let newTop, newLeft;
-      let attempts = 0;
-      do {
-        newTop = Math.random() * (containerRect.height - noButtonHeight);
-        newLeft = Math.random() * (containerRect.width - noButtonWidth);
-        attempts++;
-      } while (
-        attempts < 100 &&
-        (newTop > safeZone.top && newTop < safeZone.bottom &&
-         newLeft > safeZone.left && newLeft < safeZone.right)
-      );
-      
-      setNoPosition({ top: `${newTop}px`, left: `${newLeft}px` });
-    }
-  }, [noCount]);
+          const overlap =
+            newLeft < yesRight + safePadding &&
+            newLeft + noButtonRect.width > yesLeft - safePadding &&
+            newTop < yesBottom + safePadding &&
+            newTop + noButtonRect.height > yesTop - safePadding;
+          
+          if (!overlap) {
+            break;
+          }
+          attempts++;
+        } while (attempts < maxAttempts);
+  
+        setNoPosition({ top: `${newTop}px`, left: `${newLeft}px` });
+      }
+  }, [noCount, yesButtonScale]);
 
   const handleYesClick = () => {
     setIsAgreed(true);
@@ -64,29 +68,18 @@ export default function ValentinePage() {
 
   const handleNoInteraction = () => {
     setNoCount(count => count + 1);
-    const newScale = yesButtonScale + 0.2 * (noCount + 1);
-    const maxScale = 1.8;
+    const newScale = yesButtonScale + 0.2;
+    const maxScale = 1.6;
     setYesButtonScale(Math.min(newScale, maxScale));
   };
   
   const getYesButtonText = () => {
-    if (yesButtonScale > 1.5) return "Yesss!";
+    if (noCount > 4) return "Yesss!";
     return "Yes";
   }
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setUploadedImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const noButtonText = phrases[Math.min(noCount, phrases.length - 1)];
-  const yesButtonSizeClass = `py-6 px-10 text-xl`;
+  const buttonSizeClass = `py-4 px-8 text-lg`;
 
   if (isAgreed) {
     return (
@@ -99,27 +92,13 @@ export default function ValentinePage() {
         </p>
         <div className="relative w-80 h-80 md:w-96 md:h-96 animate-in fade-in zoom-in-75 delay-1000 duration-1000">
           <Image
-            src={uploadedImage || celebrationImage?.imageUrl || ''}
-            alt={uploadedImage ? "Uploaded celebration" : (celebrationImage?.description || 'Celebration image')}
+            src={celebrationImage?.imageUrl || ''}
+            alt={celebrationImage?.description || 'Celebration image'}
             fill
             className="rounded-full object-cover shadow-2xl"
             data-ai-hint={celebrationImage?.imageHint}
           />
         </div>
-        <input 
-          type="file" 
-          ref={fileInputRef}
-          onChange={handleImageUpload}
-          className="hidden"
-          accept="image/*"
-        />
-        <Button 
-          onClick={() => fileInputRef.current?.click()}
-          className="mt-8 animate-in fade-in delay-1500 duration-1000"
-        >
-          <Upload className="mr-2 h-4 w-4" />
-          Use your own image
-        </Button>
       </main>
     );
   }
@@ -135,23 +114,24 @@ export default function ValentinePage() {
         <h1 className="font-headline text-4xl sm:text-5xl md:text-7xl font-bold text-primary text-center max-w-2xl">
           Will you be my Valentine?
         </h1>
-        <div className="flex items-center gap-4 relative">
+        <div className="relative flex items-center justify-center gap-4 h-24 w-full">
           <Button 
             ref={yesButtonRef}
             onClick={handleYesClick}
-            className={`bg-accent hover:bg-accent/90 text-accent-foreground font-bold transition-transform duration-300 ease-in-out shadow-lg hover:shadow-2xl ${yesButtonSizeClass}`}
-            style={{ transform: `scale(${yesButtonScale})` }}
+            className={`bg-accent hover:bg-accent/90 text-accent-foreground font-bold transition-all duration-300 ease-in-out shadow-lg hover:shadow-2xl ${buttonSizeClass}`}
+            style={{ transform: `scale(${yesButtonScale})`, transformOrigin: 'center' }}
           >
             {getYesButtonText()}
           </Button>
           <Button
+              ref={noButtonRef}
               onMouseOver={handleNoInteraction}
               onClick={handleNoInteraction}
-              className={`font-bold transition-all duration-300 ease-in-out shadow-md ${yesButtonSizeClass} ${noCount > 0 ? 'absolute' : 'relative'}`}
-              style={noCount > 0 ? {
-                top: noPosition?.top,
-                left: noPosition?.left,
-                visibility: noPosition ? 'visible' : 'hidden',
+              className={`font-bold transition-all duration-300 ease-in-out shadow-md ${buttonSizeClass} ${noCount > 0 ? 'absolute' : ''}`}
+              style={noCount > 0 && noPosition ? {
+                top: noPosition.top,
+                left: noPosition.left,
+                transition: 'top 0.4s ease, left 0.4s ease',
               } : {}}
               variant="primary"
             >
