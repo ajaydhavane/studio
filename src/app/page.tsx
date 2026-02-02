@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { Heart } from 'lucide-react';
+import { Heart, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
@@ -17,9 +17,11 @@ export default function ValentinePage() {
   const [yesButtonScale, setYesButtonScale] = useState(1);
   const [noCount, setNoCount] = useState(0);
   const [noPosition, setNoPosition] = useState<{ top: string; left: string } | null>(null);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLElement>(null);
   const yesButtonRef = useRef<HTMLButtonElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const celebrationImage = useMemo(() => {
     return PlaceHolderImages.find((img) => img.id === 'valentine-celebration');
@@ -30,7 +32,7 @@ export default function ValentinePage() {
       const containerRect = containerRef.current.getBoundingClientRect();
       const yesRect = yesButtonRef.current.getBoundingClientRect();
       
-      const noButtonWidth = 150; // Approximate width based on py-6 px-10 text-xl
+      const noButtonWidth = 150; // Approximate width
       const noButtonHeight = 76; // Approximate height
 
       const safeZone = {
@@ -48,8 +50,8 @@ export default function ValentinePage() {
         attempts++;
       } while (
         attempts < 100 &&
-        newTop > safeZone.top && newTop < safeZone.bottom &&
-        newLeft > safeZone.left && newLeft < safeZone.right
+        (newTop > safeZone.top && newTop < safeZone.bottom &&
+         newLeft > safeZone.left && newLeft < safeZone.right)
       );
       
       setNoPosition({ top: `${newTop}px`, left: `${newLeft}px` });
@@ -62,7 +64,9 @@ export default function ValentinePage() {
 
   const handleNoInteraction = () => {
     setNoCount(count => count + 1);
-    setYesButtonScale((scale) => Math.min(scale + 0.2, 2.0));
+    const newScale = yesButtonScale + 0.2 * (noCount + 1);
+    const maxScale = 1.8;
+    setYesButtonScale(Math.min(newScale, maxScale));
   };
   
   const getYesButtonText = () => {
@@ -70,7 +74,19 @@ export default function ValentinePage() {
     return "Yes";
   }
 
-  const noButtonText = phrases[noCount % phrases.length];
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUploadedImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const noButtonText = phrases[Math.min(noCount, phrases.length - 1)];
+  const yesButtonSizeClass = `py-6 px-10 text-xl`;
 
   if (isAgreed) {
     return (
@@ -81,17 +97,29 @@ export default function ValentinePage() {
         <p className="text-2xl text-primary/80 mb-8 animate-in fade-in zoom-in-90 delay-500 duration-1000">
           I love you! See you on the 14th ❤️
         </p>
-        {celebrationImage && (
-           <div className="relative w-80 h-80 md:w-96 md:h-96 animate-in fade-in zoom-in-75 delay-1000 duration-1000">
-             <Image
-                src={celebrationImage.imageUrl}
-                alt={celebrationImage.description}
-                fill
-                className="rounded-full object-cover shadow-2xl"
-                data-ai-hint={celebrationImage.imageHint}
-             />
-           </div>
-        )}
+        <div className="relative w-80 h-80 md:w-96 md:h-96 animate-in fade-in zoom-in-75 delay-1000 duration-1000">
+          <Image
+            src={uploadedImage || celebrationImage?.imageUrl || ''}
+            alt={uploadedImage ? "Uploaded celebration" : (celebrationImage?.description || 'Celebration image')}
+            fill
+            className="rounded-full object-cover shadow-2xl"
+            data-ai-hint={celebrationImage?.imageHint}
+          />
+        </div>
+        <input 
+          type="file" 
+          ref={fileInputRef}
+          onChange={handleImageUpload}
+          className="hidden"
+          accept="image/*"
+        />
+        <Button 
+          onClick={() => fileInputRef.current?.click()}
+          className="mt-8 animate-in fade-in delay-1500 duration-1000"
+        >
+          <Upload className="mr-2 h-4 w-4" />
+          Use your own image
+        </Button>
       </main>
     );
   }
@@ -104,47 +132,33 @@ export default function ValentinePage() {
       <Heart className="absolute bottom-24 left-20 text-primary/5 size-10 rotate-[-25deg] animate-pulse delay-700" fill="currentColor" />
       
       <div className="z-10 flex flex-col items-center gap-8">
-        <h1 className="font-headline text-4xl sm:text-5xl md:text-7xl font-bold text-primary text-center">
+        <h1 className="font-headline text-4xl sm:text-5xl md:text-7xl font-bold text-primary text-center max-w-2xl">
           Will you be my Valentine?
         </h1>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 relative">
           <Button 
             ref={yesButtonRef}
             onClick={handleYesClick}
-            className="bg-accent hover:bg-accent/90 text-accent-foreground font-bold text-xl py-6 px-10 transition-transform duration-300 ease-in-out shadow-lg hover:shadow-2xl"
+            className={`bg-accent hover:bg-accent/90 text-accent-foreground font-bold transition-transform duration-300 ease-in-out shadow-lg hover:shadow-2xl ${yesButtonSizeClass}`}
             style={{ transform: `scale(${yesButtonScale})` }}
           >
             {getYesButtonText()}
           </Button>
-          {noCount === 0 && (
-            <Button
+          <Button
               onMouseOver={handleNoInteraction}
               onClick={handleNoInteraction}
-              className="font-bold text-xl py-6 px-10 shadow-md"
+              className={`font-bold transition-all duration-300 ease-in-out shadow-md ${yesButtonSizeClass} ${noCount > 0 ? 'absolute' : 'relative'}`}
+              style={noCount > 0 ? {
+                top: noPosition?.top,
+                left: noPosition?.left,
+                visibility: noPosition ? 'visible' : 'hidden',
+              } : {}}
               variant="primary"
             >
-              {phrases[0]}
+              {noButtonText}
             </Button>
-          )}
         </div>
       </div>
-
-      {noCount > 0 && (
-        <Button
-          onMouseOver={handleNoInteraction}
-          onClick={handleNoInteraction}
-          style={{
-            position: 'absolute',
-            top: noPosition?.top,
-            left: noPosition?.left,
-            visibility: noPosition ? 'visible' : 'hidden',
-          }}
-          className="z-10 font-bold text-xl py-6 px-10 transition-all duration-300 ease-in-out shadow-md"
-          variant="primary"
-        >
-          {noButtonText}
-        </Button>
-      )}
     </main>
   );
 }
