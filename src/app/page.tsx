@@ -128,7 +128,7 @@ export default function ValentinePage() {
         </p>
         <div className="relative w-80 h-80 md:w-96 md:h-96 animate-in fade-in zoom-in-75 delay-1000 duration-1000">
           <Image
-            src="/celebration.png"
+            src="/celebration.jpg"
             alt="Celebration image"
             fill
             className="rounded-full object-cover shadow-2xl"
