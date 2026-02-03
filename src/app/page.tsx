@@ -20,36 +20,39 @@ export default function ValentinePage() {
   const containerRef = useRef<HTMLElement>(null);
   const yesButtonRef = useRef<HTMLButtonElement>(null);
   const noButtonRef = useRef<HTMLButtonElement>(null);
-  const noButtonInitialRect = useRef<DOMRect | null>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
-    if (noButtonRef.current && !noButtonInitialRect.current) {
-        noButtonInitialRect.current = noButtonRef.current.getBoundingClientRect();
-    }
-  }, []);
-
-  useEffect(() => {
-    if (noCount > 0 && containerRef.current && yesButtonRef.current && noButtonRef.current) {
+    if (noCount > 0 && containerRef.current && yesButtonRef.current && noButtonRef.current && headingRef.current) {
         const container = containerRef.current;
         const containerRect = container.getBoundingClientRect();
         const yesButtonRect = yesButtonRef.current.getBoundingClientRect();
+        const headingRect = headingRef.current.getBoundingClientRect();
+        
         const noButtonRect = noButtonRef.current.getBoundingClientRect();
   
         let newTop, newLeft;
         let attempts = 0;
         const maxAttempts = 100;
+
+        const yesBox = {
+            top: yesButtonRect.top - containerRect.top,
+            left: yesButtonRect.left - containerRect.left,
+            right: yesButtonRect.right - containerRect.left,
+            bottom: yesButtonRect.bottom - containerRect.top,
+        };
+
+        const headingBox = {
+            top: headingRect.top - containerRect.top,
+            left: headingRect.left - containerRect.left,
+            right: headingRect.right - containerRect.left,
+            bottom: headingRect.bottom - containerRect.top,
+        };
   
         do {
           newTop = Math.random() * (container.clientHeight - noButtonRect.height);
           newLeft = Math.random() * (container.clientWidth - noButtonRect.width);
   
-          const yesBox = {
-            top: yesButtonRect.top - containerRect.top,
-            left: yesButtonRect.left - containerRect.left,
-            right: yesButtonRect.right - containerRect.left,
-            bottom: yesButtonRect.bottom - containerRect.top,
-          };
-          
           const noBox = {
             top: newTop,
             left: newLeft,
@@ -57,14 +60,21 @@ export default function ValentinePage() {
             bottom: newTop + noButtonRect.height,
           };
   
-          const overlap = !(
+          const overlapWithYes = !(
             noBox.right < yesBox.left ||
             noBox.left > yesBox.right ||
             noBox.bottom < yesBox.top ||
             noBox.top > yesBox.bottom
           );
+
+          const overlapWithHeading = !(
+            noBox.right < headingBox.left ||
+            noBox.left > headingBox.right ||
+            noBox.bottom < headingBox.top ||
+            noBox.top > headingBox.bottom
+          );
   
-          if (!overlap) {
+          if (!overlapWithYes && !overlapWithHeading) {
             break;
           }
           attempts++;
@@ -73,8 +83,6 @@ export default function ValentinePage() {
         if (attempts < maxAttempts) {
             setNoButtonPosition({ top: newTop, left: newLeft });
         } else {
-            // Fallback position if no non-overlapping spot is found after many attempts.
-            // This could be top-left corner or another safe spot.
             setNoButtonPosition({ top: 0, left: 0 });
         }
       }
@@ -106,6 +114,8 @@ export default function ValentinePage() {
     width: '120px',
     fontSize: '18px',
   };
+  
+  const { width, ...restButtonStyle } = buttonStyle;
 
   if (isAgreed) {
     return (
@@ -114,7 +124,7 @@ export default function ValentinePage() {
           Of course you will!
         </h1>
         <p className="text-2xl text-primary/80 mb-8 animate-in fade-in zoom-in-90 delay-500 duration-1000">
-          I love you! See you on the 14th ❤️
+          I love you! ❤️
         </p>
         <div className="relative w-80 h-80 md:w-96 md:h-96 animate-in fade-in zoom-in-75 delay-1000 duration-1000">
           <Image
@@ -136,7 +146,7 @@ export default function ValentinePage() {
       <Heart className="absolute bottom-24 left-20 text-primary/5 size-10 rotate-[-25deg] animate-pulse delay-700" fill="currentColor" />
       
       <div className="z-10 flex flex-col items-center gap-8">
-        <h1 className="font-headline text-4xl sm:text-5xl md:text-7xl font-bold text-primary text-center max-w-2xl">
+        <h1 ref={headingRef} className="font-headline text-4xl sm:text-5xl md:text-7xl font-bold text-primary text-center max-w-2xl">
           Will you be my Valentine?
         </h1>
         <div className="flex items-center justify-center gap-4 h-24 w-full">
@@ -158,7 +168,7 @@ export default function ValentinePage() {
               onClick={handleNoInteraction}
               className={`font-bold shadow-md transition-all duration-300 ease-in-out ${isNoButtonAbsolute ? 'absolute' : ''}`}
               style={isNoButtonAbsolute && noButtonPosition ? {
-                ...buttonStyle,
+                ...restButtonStyle,
                 top: `${noButtonPosition.top}px`,
                 left: `${noButtonPosition.left}px`,
                 transition: 'top 0.4s ease, left 0.4s ease',
