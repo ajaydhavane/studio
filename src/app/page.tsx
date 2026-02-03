@@ -173,7 +173,7 @@ export default function ValentinePage() {
                 left: `${noButtonPosition.left}px`,
                 transition: 'top 0.4s ease, left 0.4s ease',
               } : buttonStyle}
-              variant="default"
+              variant="variant"
             >
               {getNoButtonText()}
             </Button>
