@@ -1,10 +1,9 @@
 'use client';
 
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 const phrases = [
   "No", "Are you sure?", "Really sure?", "Think again!", "Last chance!", 
@@ -21,33 +20,34 @@ export default function ValentinePage() {
   const containerRef = useRef<HTMLElement>(null);
   const yesButtonRef = useRef<HTMLButtonElement>(null);
   const noButtonRef = useRef<HTMLButtonElement>(null);
+  const noButtonInitialRect = useRef<DOMRect | null>(null);
 
-  const celebrationImage = useMemo(() => {
-    return PlaceHolderImages.find((img) => img.id === 'valentine-celebration');
+  useEffect(() => {
+    if (noButtonRef.current && !noButtonInitialRect.current) {
+        noButtonInitialRect.current = noButtonRef.current.getBoundingClientRect();
+    }
   }, []);
 
   useEffect(() => {
     if (noCount > 0 && containerRef.current && yesButtonRef.current && noButtonRef.current) {
         const container = containerRef.current;
-        const containerRect = container.getBoundingClientRect(); // Still needed for relative calculations
+        const containerRect = container.getBoundingClientRect();
         const yesButtonRect = yesButtonRef.current.getBoundingClientRect();
         const noButtonRect = noButtonRef.current.getBoundingClientRect();
   
         let newTop, newLeft;
         let attempts = 0;
         const maxAttempts = 100;
-        const safePadding = 20;
   
         do {
-          // Use clientHeight/clientWidth to ensure the button stays within the padded content area.
           newTop = Math.random() * (container.clientHeight - noButtonRect.height);
           newLeft = Math.random() * (container.clientWidth - noButtonRect.width);
   
           const yesBox = {
-            top: yesButtonRect.top - containerRect.top - safePadding,
-            left: yesButtonRect.left - containerRect.left - safePadding,
-            right: yesButtonRect.right - containerRect.left + safePadding,
-            bottom: yesButtonRect.bottom - containerRect.top + safePadding,
+            top: yesButtonRect.top - containerRect.top,
+            left: yesButtonRect.left - containerRect.left,
+            right: yesButtonRect.right - containerRect.left,
+            bottom: yesButtonRect.bottom - containerRect.top,
           };
           
           const noBox = {
@@ -73,7 +73,8 @@ export default function ValentinePage() {
         if (attempts < maxAttempts) {
             setNoButtonPosition({ top: newTop, left: newLeft });
         } else {
-            // Fallback if no position is found.
+            // Fallback position if no non-overlapping spot is found after many attempts.
+            // This could be top-left corner or another safe spot.
             setNoButtonPosition({ top: 0, left: 0 });
         }
       }
@@ -100,7 +101,11 @@ export default function ValentinePage() {
     return "Yes";
   }
 
-  const buttonSizeClass = `py-4 px-8 text-lg rounded-lg`;
+  const buttonStyle: React.CSSProperties = {
+    height: '48px',
+    width: '120px',
+    fontSize: '18px',
+  };
 
   if (isAgreed) {
     return (
@@ -113,11 +118,10 @@ export default function ValentinePage() {
         </p>
         <div className="relative w-80 h-80 md:w-96 md:h-96 animate-in fade-in zoom-in-75 delay-1000 duration-1000">
           <Image
-            src={celebrationImage?.imageUrl || ''}
-            alt={celebrationImage?.description || 'Celebration image'}
+            src="/celebration.png"
+            alt="Celebration image"
             fill
             className="rounded-full object-cover shadow-2xl"
-            data-ai-hint={celebrationImage?.imageHint}
           />
         </div>
       </main>
@@ -139,8 +143,12 @@ export default function ValentinePage() {
           <Button 
             ref={yesButtonRef}
             onClick={handleYesClick}
-            className={`bg-accent hover:bg-accent/90 text-accent-foreground font-bold transition-all duration-300 ease-in-out shadow-lg hover:shadow-2xl ${buttonSizeClass}`}
-            style={{ transform: `scale(${yesButtonScale})`, transformOrigin: 'center' }}
+            className={`bg-accent hover:bg-accent/90 text-accent-foreground font-bold transition-all duration-300 ease-in-out shadow-lg hover:shadow-2xl`}
+            style={{ 
+              ...buttonStyle,
+              transform: `scale(${yesButtonScale})`, 
+              transformOrigin: 'center'
+            }}
           >
             {getYesButtonText()}
           </Button>
@@ -148,12 +156,13 @@ export default function ValentinePage() {
               ref={noButtonRef}
               onMouseOver={handleNoInteraction}
               onClick={handleNoInteraction}
-              className={`font-bold shadow-md ${buttonSizeClass} ${isNoButtonAbsolute ? 'absolute' : ''}`}
+              className={`font-bold shadow-md transition-all duration-300 ease-in-out ${isNoButtonAbsolute ? 'absolute' : ''}`}
               style={isNoButtonAbsolute && noButtonPosition ? {
+                ...buttonStyle,
                 top: `${noButtonPosition.top}px`,
                 left: `${noButtonPosition.left}px`,
                 transition: 'top 0.4s ease, left 0.4s ease',
-              } : {}}
+              } : buttonStyle}
               variant="primary"
             >
               {getNoButtonText()}
